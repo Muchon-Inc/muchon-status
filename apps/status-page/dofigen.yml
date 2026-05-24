@@ -19,8 +19,12 @@ builders:
       VERCEL_AUTH_BEARER_TOKEN: test
       OPENPANEL_CLIENT_SECRET: test
       RESEND_API_KEY: test
-      UPSTASH_REDIS_REST_URL: test
-      UPSTASH_REDIS_REST_TOKEN: test
+      # `@upstash/redis` SDK validates the URL at construction time (must start
+      # with https://). A bare "test" string fails the check and aborts the
+      # Next.js build. Real values are injected at runtime by the host
+      # (Railway, docker compose .env.docker, etc.).
+      UPSTASH_REDIS_REST_URL: https://placeholder.upstash.io
+      UPSTASH_REDIS_REST_TOKEN: build-placeholder
       UNKEY_TOKEN: test
       UNKEY_API_ID: test
       TINY_BIRD_API_KEY: test

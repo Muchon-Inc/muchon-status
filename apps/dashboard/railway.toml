@@ -1,0 +1,20 @@
+# Railway service configuration for the Next.js dashboard.
+#
+# Railway settings on this service must use the repository root as the
+# build context — the Dockerfile does `COPY . /app/`.
+#
+#   Build Context     : / (monorepo root)
+#   Config Path       : apps/dashboard/railway.toml
+#   Dockerfile Path   : apps/dashboard/Dockerfile  (resolved below)
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "apps/dashboard/Dockerfile"
+
+[deploy]
+# Next.js standalone listens on $PORT (default 3000) — Railway injects PORT.
+startCommand = "node server.js"
+healthcheckPath = "/"
+healthcheckTimeout = 60
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5

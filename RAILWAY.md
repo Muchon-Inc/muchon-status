@@ -24,10 +24,13 @@ Redis/QStash 같은 외부 의존성도 마찬가지로 Upstash 같은 매니지
 - **Repository**: `Muchon-Inc/muchon-status`
 - **Branch**: 배포할 브랜치 (기본 `main`)
 - **Root Directory**: `/` (비워두면 됩니다)
-- **Config Path**: 서비스에 맞는 `apps/<service>/railway.toml` 경로
-  - Settings 화면에 따로 입력란이 보이지 않으면 환경변수 `RAILWAY_CONFIG_FILE`에 같은 값을 넣어도 됩니다.
+- **Config-as-Code File**: 서비스에 맞는 `apps/<service>/railway.toml` 경로
+  - 이걸 안 잡으면 Railway 가 Nixpacks 로 떨어져서 루트 `pnpm run build` 를 통째로 돌리고, `@openstatus/proto` 같은 패키지에서 막혀 빌드가 깨집니다. **반드시 지정**.
+  - Settings 화면에 입력란이 보이지 않는 플랜이라면 같은 서비스의 Variables 에 `RAILWAY_CONFIG_FILE=apps/dashboard/railway.toml` 같은 식으로 넣어도 됩니다.
 
 Dockerfile 경로와 헬스체크 경로는 각 `railway.toml`에 이미 들어 있어서 추가 설정은 필요 없어요.
+
+> 빌드 로그 첫 줄이 `$ turbo run build` (필터 없음) 으로 시작한다면 위 설정이 안 먹은 신호입니다. Dockerfile 빌드라면 `pnpm install --frozen-lockfile` 이후에 `pnpm turbo run build --filter=@openstatus/dashboard` 가 떠야 정상이에요.
 
 ## 빌드 타임 플레이스홀더 이슈
 

@@ -22,10 +22,10 @@ ENV \
     NEXT_PUBLIC_URL="http://localhost:3002" \
     UNKEY_TOKEN="test" \
     RANDOM_YOLO="YOLO" \
-    UPSTASH_REDIS_REST_TOKEN="test" \
+    UPSTASH_REDIS_REST_TOKEN="build-placeholder" \
     UNKEY_API_ID="test" \
     DATABASE_URL="http://libsql:8080" \
-    UPSTASH_REDIS_REST_URL="test" \
+    UPSTASH_REDIS_REST_URL="https://placeholder.upstash.io" \
     VERCEL_AUTH_BEARER_TOKEN="test" \
     PNPM_HOME="/pnpm" \
     DATABASE_AUTH_TOKEN="test"

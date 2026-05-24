@@ -1,0 +1,16 @@
+# Railway service configuration for the public status-page.
+#
+#   Build Context     : / (monorepo root)
+#   Config Path       : apps/status-page/railway.toml
+#   Dockerfile Path   : apps/status-page/Dockerfile
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "apps/status-page/Dockerfile"
+
+[deploy]
+startCommand = "node server.js"
+healthcheckPath = "/"
+healthcheckTimeout = 60
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5

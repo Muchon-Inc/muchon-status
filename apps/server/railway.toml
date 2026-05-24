@@ -1,0 +1,16 @@
+# Railway service configuration for the Hono/Bun API server.
+#
+#   Build Context     : / (monorepo root)
+#   Config Path       : apps/server/railway.toml
+#   Dockerfile Path   : apps/server/Dockerfile
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "apps/server/Dockerfile"
+
+[deploy]
+# Hono server reads $PORT (defaults to 3000) — Railway injects PORT.
+healthcheckPath = "/ping"
+healthcheckTimeout = 60
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5

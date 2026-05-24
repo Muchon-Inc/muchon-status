@@ -1,0 +1,16 @@
+# Railway service configuration for the background workflows runner.
+#
+#   Build Context     : / (monorepo root)
+#   Config Path       : apps/workflows/railway.toml
+#   Dockerfile Path   : apps/workflows/Dockerfile
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "apps/workflows/Dockerfile"
+
+[deploy]
+# Workflows exposes /ping for health probes and reads $PORT (default 3000).
+healthcheckPath = "/ping"
+healthcheckTimeout = 60
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5

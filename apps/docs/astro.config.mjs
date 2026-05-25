@@ -19,9 +19,13 @@ export default defineConfig({
   },
   env: {
     schema: {
+      // optional: 정적 사이트 빌드에 OpenPanel 클라이언트 id 가 없어도
+      // 통과해야 한다. 값이 있을 때만 analytics 가 활성화되고, 없으면
+      // 그냥 비활성. 빌드 자체가 깨지면 배포가 막힌다.
       NEXT_PUBLIC_OPENPANEL_CLIENT_ID: envField.string({
         access: "public",
         context: "client",
+        optional: true,
       }),
     },
   },

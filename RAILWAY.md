@@ -4,7 +4,7 @@
 
 ## 어떤 서비스를 올릴까
 
-기본 구성은 네 개입니다. 각각 별도 Railway 서비스로 만드세요.
+기본 구성은 다섯 개입니다. 각각 별도 Railway 서비스로 만드세요.
 
 | Railway 서비스 | Config Path | 역할 |
 |---|---|---|
@@ -12,6 +12,9 @@
 | `status-page` | `apps/status-page/railway.toml` | 공개 상태 페이지 (Next.js) |
 | `server` | `apps/server/railway.toml` | 외부 REST/tRPC API (Hono on Bun) |
 | `workflows` | `apps/workflows/railway.toml` | 모니터 스케줄러 / 백그라운드 잡 |
+| `docs` | `apps/docs/railway.toml` | 문서 사이트 (Astro starlight, 정적) |
+
+`docs` 는 정적 사이트라 비교적 가볍습니다. 문서가 필요 없으면 빼도 됩니다.
 
 데이터베이스(LibSQL/Turso)는 Railway에 띄우지 않고 [Turso Cloud](https://turso.tech)에 별도로 만들어 쓰는 걸 권장합니다. 자체 호스팅하고 싶다면 Railway에 sqld 컨테이너를 하나 더 띄워도 되지만, 영속 볼륨과 백업까지 직접 챙겨야 해요.
 
@@ -32,16 +35,20 @@ Dockerfile 경로와 헬스체크 경로는 각 `railway.toml`에 이미 들어 
 
 > 빌드 로그 첫 줄이 `$ turbo run build` (필터 없음) 으로 시작한다면 위 설정이 안 먹은 신호입니다. Dockerfile 빌드라면 `pnpm install --frozen-lockfile` 이후에 `pnpm turbo run build --filter=@openstatus/dashboard` 가 떠야 정상이에요.
 
-## 빌드 타임 플레이스홀더 이슈
+## 빌드 타임 vs 런타임 환경변수
 
-`apps/dashboard/Dockerfile`과 `apps/status-page/Dockerfile`에는 `UPSTASH_REDIS_REST_URL` 같은 변수들이 빌드 ENV로 박혀 있습니다. Next.js가 `/api/trpc/lambda/[trpc]` 같은 라우트를 분석할 때 `@openstatus/upstash`가 임포트되고, 예전엔 그 시점에 `Redis.fromEnv()`가 즉시 실행돼서 `"test"` 같은 값이 `@upstash/redis`의 `https://` 검증을 통과하지 못해 빌드가 깨졌습니다.
+Next.js / Astro 같은 빌드 시스템은 `process.env.NEXT_PUBLIC_*` 또는 `import.meta.env.*` 값을 **빌드 단계에서 정적으로 인라인**합니다. 즉, Railway 의 Service Variables 에 적은 값은 컨테이너가 부팅할 때 들어오는 거고, 빌드 시점에는 들어오지 않습니다.
 
-이제는 두 가지 안전장치를 두었습니다.
+이 프로젝트는 두 가지 방식으로 빌드 깨짐을 방지합니다.
 
-1. `packages/upstash/src/redis/client.ts`에서 Redis 클라이언트를 Proxy로 감싸 첫 호출 시점까지 생성을 미룹니다. 모듈만 import 해서는 SDK 검증이 트리거되지 않아요.
-2. Dockerfile/dofigen 플레이스홀더도 `https://placeholder.upstash.io` 처럼 검증을 통과하는 값으로 바꿨습니다.
+1. **Dockerfile 에 박힌 빌드 placeholder** — `apps/dashboard/Dockerfile`, `apps/status-page/Dockerfile` 에 `UPSTASH_REDIS_REST_URL=https://placeholder.upstash.io`, `NEXT_PUBLIC_OPENPANEL_CLIENT_ID=test` 같은 값이 ENV 로 들어가 있어 zod / SDK 검증이 빌드 시점에 통과합니다. 진짜 값은 런타임에 Railway Service Variables 가 덮어씁니다.
+2. **모듈 레벨 부수효과 지연** — `packages/upstash/src/redis/client.ts` 의 Redis 싱글톤은 Proxy 로 감싸 첫 호출 시점까지 `Redis.fromEnv()` 실행을 미룹니다.
 
-실제 Redis 자격 증명은 Railway에서 런타임 환경변수로 주입하면 됩니다. 빌드 ENV는 그대로 덮어써집니다.
+### 진짜 값으로 빌드해야 하는 경우 (예: OpenPanel 분석)
+
+`NEXT_PUBLIC_*` 처럼 클라이언트 번들에 박히는 값은 런타임에 못 바꿉니다. 진짜 클라이언트 ID 를 쓰려면 Railway 서비스의 **Build Variables** (Settings → Build → Variables) 에 같은 이름으로 값을 주세요. Dockerfile 의 `ENV` 가 그 값으로 덮어써집니다.
+
+이게 안 되면 Service Variables 에 넣고 매번 컨테이너가 새 placeholder 로 빌드된 번들을 받게 됩니다 — analytics 가 동작 안 함.
 
 ## 서비스별 환경변수
 
@@ -108,6 +115,24 @@ RESEND_API_KEY=<resend-key>
 
 GCP Cloud Tasks를 쓰지 않으면 GCP 값은 빈 문자열로 둬도 됩니다(스케줄링 기능 일부가 비활성화됩니다).
 
+### docs
+
+런타임 환경변수는 필요 없습니다. 정적 사이트라 `serve` 가 빌드된 파일만 노출합니다.
+
+OpenPanel analytics 를 활성화하려면 **Build Variables** 에 `NEXT_PUBLIC_OPENPANEL_CLIENT_ID=<id>` 를 넣으세요. 비워두면 analytics 만 비활성, 빌드는 통과 (envField 가 optional 로 잡혀 있음).
+
+## 서비스별 빌드 타임 의존성
+
+각 서비스가 빌드를 통과하려면 다음 변수들이 Dockerfile placeholder 또는 Build Variables 로 채워져 있어야 합니다 (이미 Dockerfile 에 더미 값이 들어가 있어 기본 빌드는 OK).
+
+| 서비스 | 빌드 타임 필수 | 비고 |
+|---|---|---|
+| dashboard | `@openstatus/api` 의 createEnv 전체 (STRIPE_SECRET_KEY, PROJECT_ID_VERCEL, TEAM_ID_VERCEL, VERCEL_AUTH_BEARER_TOKEN, TINY_BIRD_API_KEY, RESEND_API_KEY, CRON_SECRET, UNKEY_TOKEN, UNKEY_API_ID), `@openstatus/emails` 의 RESEND_API_KEY, AUTH_SECRET, UPSTASH_REDIS_REST_URL/TOKEN, NEXT_PUBLIC_OPENPANEL_CLIENT_ID, NEXT_PUBLIC_URL | Dockerfile placeholder 로 모두 커버 |
+| status-page | dashboard 와 동일한 createEnv 세트 | Dockerfile placeholder 로 모두 커버 |
+| server | 없음 (`skipValidation: true`) | 런타임 검증만 |
+| workflows | 없음 (모든 필드 `.prefault("")`) | 런타임 검증만 |
+| docs | `NEXT_PUBLIC_OPENPANEL_CLIENT_ID` (optional 로 잡혀 있음) | envField default 로 통과 |
+
 ## 서비스 간 연결
 
 같은 Railway 프로젝트의 서비스끼리는 `<service-name>.railway.internal` 주소로 통신할 수 있습니다. 외부 노출 도메인이 아니라 이쪽을 쓰면 egress 비용도 줄고 더 빠릅니다. 예시:
@@ -135,3 +160,5 @@ GCP Cloud Tasks를 쓰지 않으면 GCP 값은 빈 문자열로 둬도 됩니다
 - **헬스체크 실패**: 첫 부팅 시간이 길어지면 `apps/<service>/railway.toml`의 `healthcheckTimeout` 을 늘려 보세요. 마이그레이션이 무거우면 workflows는 60초로는 빠듯할 수 있습니다.
 - **빌드 컨텍스트 누락**: "no such file or directory" 류 에러가 나면 Root Directory가 비어 있는지(루트가 컨텍스트인지) 다시 확인합니다. `apps/dashboard` 같은 하위 경로로 잡히면 모노레포 의존성이 보이지 않습니다.
 - **마이그레이션이 안 돈다**: workflows가 살아 있는지 확인하고, 죽었다면 로그에서 DB 접근 실패 원인을 봅니다. dashboard만 띄우고 workflows를 빼면 DB가 빈 상태로 남아 로그인이 깨집니다.
+- **`--mount=type=bind` 또는 cache mount id 에러**: Railway 의 이미지 빌더는 `type=bind` 를 거부하고 `type=cache` 도 `id=s/<service-id>-<target>` 을 요구합니다. 모든 mount 는 제거된 상태(2026-05 작업)지만, 새 Dockerfile 을 추가할 때도 mount 를 쓰지 마세요.
+- **Astro/Next.js envField required 에러**: 빌드 시점에 검증되는 env 가 비어서 깨지는 케이스. Dockerfile 에 placeholder 로 박혀 있는지, 혹은 envField/createEnv 정의를 `optional` 로 바꿔야 하는지 위 매트릭스를 참고하세요.

@@ -1,0 +1,22 @@
+# Railway service configuration for the headless screenshot worker.
+#
+#   Build Context     : / (monorepo root)
+#   Config Path       : apps/screenshot-service/railway.toml
+#   Dockerfile Path   : apps/screenshot-service/Dockerfile
+#
+# 없으면 Railway 가 Railpack 으로 떨어져 monorepo 전체 44 패키지를
+# 빌드하다가 status-page 의 DATABASE_URL 검증 등에서 깨진다.
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "apps/screenshot-service/Dockerfile"
+
+[deploy]
+# Dockerfile WORKDIR=/app/apps/screenshot-service, CMD=["bun", "start"].
+# Re-declared here so UI 의 자동 Start Command 가 비워졌을 때도
+# railway.toml 만으로 정상 부팅된다.
+startCommand = "bun start"
+healthcheckPath = "/"
+healthcheckTimeout = 60
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5

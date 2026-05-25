@@ -18,8 +18,8 @@
 
 | Railway 서비스 | Config Path | 비고 |
 |---|---|---|
+| `web` | `apps/web/railway.toml` | 마케팅 사이트 (Next.js). 보통 Vercel 에 두지만 Railway 에서도 동작. |
 | `screenshot-service` | `apps/screenshot-service/railway.toml` | Playwright 기반 스크린샷 워커. 상태 페이지 OG 이미지가 필요할 때만. |
-| `web` | (없음) | 마케팅 사이트. Vercel 등에 따로 두는 게 정석 — Railway 용 Dockerfile 미준비. |
 
 `docs` / `screenshot-service` / `web` 은 코어 운영에 필수가 아닙니다. 문서/스크린샷/마케팅이 필요 없으면 빼도 됩니다.
 
@@ -148,6 +148,29 @@ OpenPanel analytics 를 활성화하려면 **Build Variables** 에 `NEXT_PUBLIC_
 
 런타임 환경변수는 거의 필요 없습니다. 다른 서비스가 이 워커를 호출하도록 `server` 서비스의 `SCREENSHOT_SERVICE_URL` 을 `http://screenshot-service.railway.internal:3000` 으로 설정하세요.
 
+### web (선택, 마케팅 사이트)
+
+`apps/web/src/env.ts` 가 `skipValidation: true` 라 런타임 검증은 없지만, 기능을 켜려면 다음 변수들이 필요합니다.
+
+```
+# 공통 (DATABASE_URL/AUTH_TOKEN, UPSTASH_REDIS_*) 외에:
+RESEND_API_KEY=<resend-key>
+STRIPE_SECRET_KEY=<stripe-key>
+STRIPE_WEBHOOK_SECRET_KEY=<stripe-webhook>
+QSTASH_TOKEN=<qstash-token>
+QSTASH_CURRENT_SIGNING_KEY=
+QSTASH_NEXT_SIGNING_KEY=
+TINY_BIRD_API_KEY=<tinybird>
+UNKEY_TOKEN=<unkey>
+UNKEY_API_ID=<unkey-id>
+GCP_PROJECT_ID= GCP_LOCATION= GCP_CLIENT_EMAIL= GCP_PRIVATE_KEY=
+CLICKHOUSE_URL= CLICKHOUSE_USERNAME= CLICKHOUSE_PASSWORD=
+CRON_SECRET=<공통 값>
+NEXT_PUBLIC_URL=https://<web-도메인>
+```
+
+`NEXT_PUBLIC_*` (URL, STRIPE_PUBLISHABLE_KEY, OPENPANEL_CLIENT_ID, SENTRY_DSN) 는 빌드 시점에 번들에 인라인됩니다 — 진짜 값이 필요하면 Railway 의 **Build Variables** 에 추가하세요. 빈 placeholder 로 두면 해당 기능만 비활성, 빌드는 통과.
+
 ## 서비스별 빌드 타임 의존성
 
 각 서비스가 빌드를 통과하려면 다음 변수들이 Dockerfile placeholder 또는 Build Variables 로 채워져 있어야 합니다 (이미 Dockerfile 에 더미 값이 들어가 있어 기본 빌드는 OK).
@@ -159,6 +182,8 @@ OpenPanel analytics 를 활성화하려면 **Build Variables** 에 `NEXT_PUBLIC_
 | server | 없음 (`skipValidation: true`) | 런타임 검증만 |
 | workflows | 없음 (모든 필드 `.prefault("")`) | 런타임 검증만 |
 | docs | `NEXT_PUBLIC_OPENPANEL_CLIENT_ID` (optional 로 잡혀 있음) | envField default 로 통과 |
+| web | env 검증은 `skipValidation: true` 라 OK. `NEXT_PUBLIC_*` 만 placeholder 필요 | Dockerfile placeholder 로 커버 |
+| screenshot-service | 없음 | Playwright 만 필요 |
 
 ## 서비스 간 연결
 

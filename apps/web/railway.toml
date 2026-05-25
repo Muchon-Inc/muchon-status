@@ -1,0 +1,18 @@
+# Railway service configuration for the marketing/web Next.js app.
+#
+#   Build Context     : / (monorepo root)
+#   Config Path       : apps/web/railway.toml
+#   Dockerfile Path   : apps/web/Dockerfile
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "apps/web/Dockerfile"
+
+[deploy]
+# Next.js standalone listens on $PORT (default 3000). Re-declared so UI 의
+# 자동 Start Command 가 비워졌을 때도 정상 부팅된다.
+startCommand = "node server.js"
+healthcheckPath = "/"
+healthcheckTimeout = 60
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5

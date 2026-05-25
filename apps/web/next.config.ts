@@ -50,6 +50,10 @@ const agentDiscoveryHeaders = [
 
 /** @type {import('next').NextConfig} */
 const nextConfig: NextConfig = {
+  // standalone 출력은 dashboard/status-page 와 동일하게 SELF_HOST 시에만
+  // 활성. Vercel 기본 배포는 영향 받지 않고, Docker/Railway 셀프 호스팅
+  // 시점에만 standalone 번들이 생긴다.
+  output: process.env.SELF_HOST === "true" ? "standalone" : undefined,
   reactStrictMode: true,
   transpilePackages: ["@openstatus/ui", "@openstatus/api", "next-mdx-remote"],
   env: {

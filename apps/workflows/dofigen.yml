@@ -25,8 +25,10 @@ builders:
     run:
       - corepack enable pnpm
       - pnpm install --prod --frozen-lockfile --verbose
-    cache:
-      - /root/.local/share/pnpm/store
+    # cache: pnpm store cache mount removed — Railway 의 빌더는
+    # `--mount=type=cache` 에 `id=s/<service-id>-<target>` 형식의 id 를
+    # 요구하는데, service id 는 Dockerfile 안에서 알 수 없다. 캐시 없이
+    # 받으면 install 이 매번 registry 에서 내려받지만 빌드 자체는 통과.
 
   # Stage 4: Build application (compile to binary)
   build:

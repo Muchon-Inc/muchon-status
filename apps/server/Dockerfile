@@ -12,9 +12,7 @@ WORKDIR /app/
 COPY \
     --link \
     "." "/app/"
-RUN \
-    --mount=type=cache,target=/root/.local/share/pnpm/store,sharing=locked \
-    <<EOF
+RUN <<EOF
 corepack enable pnpm
 pnpm install --prod --frozen-lockfile --verbose
 EOF

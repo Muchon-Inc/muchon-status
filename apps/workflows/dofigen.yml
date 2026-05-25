@@ -11,46 +11,17 @@ ignore:
   - /packages/error
   - /packages/tracker
 builders:
+  # Originally this stage used `--mount=type=bind` to expose package.json
+  # files without copying them, but Railway's image builder rejects bind
+  # mounts ("other mount types are not supported"). Falling back to a
+  # plain copy of the workspace works on every BuildKit/Kaniko backend.
   install:
     fromImage: node:24-slim
     workdir: /app/
     labels:
       org.opencontainers.image.stage: install
-    bind:
-      - pnpm-workspace.yaml
-      - pnpm-lock.yaml
-      - package.json
-      - apps/workflows/package.json
-      - packages/assertions/package.json
-      - packages/db/package.json
-      - packages/emails/package.json
-      - packages/notifications/base/package.json
-      - packages/notifications/discord/package.json
-      - packages/notifications/email/package.json
-      - packages/notifications/grafana-oncall/package.json
-      - packages/notifications/google-chat/package.json
-      - packages/notifications/ms-teams/package.json
-      - packages/notifications/ntfy/package.json
-      - packages/notifications/opsgenie/package.json
-      - packages/notifications/pagerduty/package.json
-      - packages/notifications/slack/package.json
-      - packages/notifications/telegram/package.json
-      - packages/notifications/bird-whatsapp/package.json
-      - packages/notifications/twillio-sms/package.json
-      - packages/notifications/webhook/package.json
-      - packages/importers/package.json
-      - packages/regions/package.json
-      - packages/services/package.json
-      - packages/subscriptions/package.json
-      - packages/utils/package.json
-      - packages/tsconfig/package.json
-      - packages/tinybird/package.json
-      - packages/upstash/package.json
-      - packages/theme-store/package.json
-      - packages/locales/package.json
-      - packages/status-fetcher/package.json
-
-    # Install dependencies
+    copy:
+      - . /app/
     run:
       - corepack enable pnpm
       - pnpm install --prod --frozen-lockfile --verbose

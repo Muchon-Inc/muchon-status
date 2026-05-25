@@ -10,6 +10,9 @@ dockerfilePath = "apps/workflows/Dockerfile"
 
 [deploy]
 # Workflows exposes /ping for health probes and reads $PORT (default 3000).
+# Re-declare ENTRYPOINT so the spec is complete — see notes in
+# apps/server/railway.toml for why.
+startCommand = "/app/apps/workflows/app"
 healthcheckPath = "/ping"
 healthcheckTimeout = 60
 restartPolicyType = "ON_FAILURE"

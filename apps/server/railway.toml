@@ -10,6 +10,11 @@ dockerfilePath = "apps/server/Dockerfile"
 
 [deploy]
 # Hono server reads $PORT (defaults to 3000) — Railway injects PORT.
+# Dockerfile ENTRYPOINT is the compiled Bun binary; we re-declare it
+# here so railway.toml is a complete spec — if a user clears the
+# auto-populated Start Command in Railway's UI, this value kicks in
+# instead of leaving the service relying on Dockerfile ENTRYPOINT alone.
+startCommand = "/bin/app"
 healthcheckPath = "/ping"
 healthcheckTimeout = 60
 restartPolicyType = "ON_FAILURE"

@@ -9,6 +9,12 @@ builder = "DOCKERFILE"
 dockerfilePath = "apps/docs/Dockerfile"
 
 [deploy]
+# Dockerfile CMD serves the static dist via `serve`. Re-declared here so
+# railway.toml is a complete spec — if Railway UI's auto-detected Start
+# Command (typically `pnpm --filter @openstatus/docs start`) is cleared,
+# this value runs. The runtime image only has `serve` installed, not pnpm,
+# so the pnpm-filter command would crash on startup.
+startCommand = "sh -c 'serve -s dist -l ${PORT:-3000}'"
 healthcheckPath = "/"
 healthcheckTimeout = 60
 restartPolicyType = "ON_FAILURE"

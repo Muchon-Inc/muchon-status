@@ -14,26 +14,49 @@
 | `workflows` | `apps/workflows/railway.toml` | 모니터 스케줄러 / 백그라운드 잡 |
 | `docs` | `apps/docs/railway.toml` | 문서 사이트 (Astro starlight, 정적) |
 
-`docs` 는 정적 사이트라 비교적 가볍습니다. 문서가 필요 없으면 빼도 됩니다.
+선택적으로 운영할 수 있는 것들:
+
+| Railway 서비스 | Config Path | 비고 |
+|---|---|---|
+| `screenshot-service` | `apps/screenshot-service/railway.toml` | Playwright 기반 스크린샷 워커. 상태 페이지 OG 이미지가 필요할 때만. |
+| `web` | (없음) | 마케팅 사이트. Vercel 등에 따로 두는 게 정석 — Railway 용 Dockerfile 미준비. |
+
+`docs` / `screenshot-service` / `web` 은 코어 운영에 필수가 아닙니다. 문서/스크린샷/마케팅이 필요 없으면 빼도 됩니다.
 
 데이터베이스(LibSQL/Turso)는 Railway에 띄우지 않고 [Turso Cloud](https://turso.tech)에 별도로 만들어 쓰는 걸 권장합니다. 자체 호스팅하고 싶다면 Railway에 sqld 컨테이너를 하나 더 띄워도 되지만, 영속 볼륨과 백업까지 직접 챙겨야 해요.
 
 Redis/QStash 같은 외부 의존성도 마찬가지로 Upstash 같은 매니지드 서비스를 그대로 쓰는 게 편합니다.
 
-## 서비스를 만들 때 공통으로 신경 쓸 것
+## 새 서비스 추가 체크리스트 (매번 그대로 따라하기)
 
-각 서비스에서 Railway 대시보드의 **Settings → Source** 를 다음과 같이 맞춰 주세요. 빌드 컨텍스트가 모노레포 루트여야 합니다 — Dockerfile이 `COPY . /app/` 으로 전체 워크스페이스를 가져가기 때문입니다.
+Railway 가 서비스를 만들 때마다 monorepo 의 `package.json` 을 스캔해서 **자동으로 Build Command 와 Start Command 를 UI 에 채워 넣습니다**. 이 UI 값들은 `railway.toml` 과 Dockerfile 의 의도를 모두 덮어쓰기 때문에, **비워주지 않으면 배포가 거의 100% 깨집니다** (`pnpm` 이 runtime 이미지에 없어서 즉시 크래시, 또는 `next build` 가 turbo 의존성을 건너뛰어 빌드 실패).
 
-- **Repository**: `Muchon-Inc/muchon-status`
-- **Branch**: 배포할 브랜치 (기본 `main`)
-- **Root Directory**: `/` (비워두면 됩니다)
-- **Config-as-Code File**: 서비스에 맞는 `apps/<service>/railway.toml` 경로
-  - 이걸 안 잡으면 Railway 가 Nixpacks 로 떨어져서 루트 `pnpm run build` 를 통째로 돌리고, `@openstatus/proto` 같은 패키지에서 막혀 빌드가 깨집니다. **반드시 지정**.
-  - Settings 화면에 입력란이 보이지 않는 플랜이라면 같은 서비스의 Variables 에 `RAILWAY_CONFIG_FILE=apps/dashboard/railway.toml` 같은 식으로 넣어도 됩니다.
+서비스 하나 만들 때마다 다음 다섯 가지를 그대로 따라 주세요.
 
-Dockerfile 경로와 헬스체크 경로는 각 `railway.toml`에 이미 들어 있어서 추가 설정은 필요 없어요.
+1. **Source 설정** (Settings → Source)
+   - Repository: `Muchon-Inc/muchon-status`
+   - Branch: 배포 브랜치 (보통 `main`)
+   - Root Directory: `/` (비워둠)
 
-> 빌드 로그 첫 줄이 `$ turbo run build` (필터 없음) 으로 시작한다면 위 설정이 안 먹은 신호입니다. Dockerfile 빌드라면 `pnpm install --frozen-lockfile` 이후에 `pnpm turbo run build --filter=@openstatus/dashboard` 가 떠야 정상이에요.
+2. **Config-as-Code File**
+   - 서비스에 맞는 `apps/<service>/railway.toml` 경로 입력.
+   - 입력란이 안 보이는 플랜이면 Variables 에 `RAILWAY_CONFIG_FILE=apps/<service>/railway.toml` 추가.
+   - 이게 빠지면 Railpack 으로 fallback → monorepo 전체 빌드 → 거의 무조건 깨짐.
+
+3. **Build Command 비우기** (Settings → Build)
+   - Railway 가 자동으로 `pnpm turbo run build --filter=...` 또는 `next build` 같은 값을 채워둡니다. **완전히 지워서 빈 칸으로** 두세요.
+   - Dockerfile 빌드를 쓰는 한 이 필드는 무시되는 게 정상.
+
+4. **Start Command 비우기** (Settings → Deploy)
+   - Railway 가 `pnpm --filter @openstatus/<service> start` 식으로 채워둡니다. **완전히 지워서 빈 칸으로** 두세요.
+   - 런타임 이미지는 알파인/슬림 베이스라 `pnpm` 이 설치돼 있지 않아 그대로 두면 즉시 크래시.
+   - 비우면 `railway.toml` 의 `[deploy].startCommand` (또는 Dockerfile CMD/ENTRYPOINT) 가 사용됩니다.
+
+5. **환경변수 입력** (Variables 탭)
+   - 아래 "서비스별 환경변수" 섹션의 목록을 그대로 붙여 넣습니다.
+
+> 빌드 로그 첫 줄이 `$ turbo run build` (필터 없음) 으로 시작한다면 1~2번이 안 먹은 신호.
+> 빌드 자체는 통과했는데 컨테이너가 `The executable pnpm could not be found` 로 죽는다면 4번을 빠뜨린 거예요.
 
 ## 빌드 타임 vs 런타임 환경변수
 
@@ -121,6 +144,10 @@ GCP Cloud Tasks를 쓰지 않으면 GCP 값은 빈 문자열로 둬도 됩니다
 
 OpenPanel analytics 를 활성화하려면 **Build Variables** 에 `NEXT_PUBLIC_OPENPANEL_CLIENT_ID=<id>` 를 넣으세요. 비워두면 analytics 만 비활성, 빌드는 통과 (envField 가 optional 로 잡혀 있음).
 
+### screenshot-service (선택)
+
+런타임 환경변수는 거의 필요 없습니다. 다른 서비스가 이 워커를 호출하도록 `server` 서비스의 `SCREENSHOT_SERVICE_URL` 을 `http://screenshot-service.railway.internal:3000` 으로 설정하세요.
+
 ## 서비스별 빌드 타임 의존성
 
 각 서비스가 빌드를 통과하려면 다음 변수들이 Dockerfile placeholder 또는 Build Variables 로 채워져 있어야 합니다 (이미 Dockerfile 에 더미 값이 들어가 있어 기본 빌드는 OK).
@@ -162,3 +189,5 @@ OpenPanel analytics 를 활성화하려면 **Build Variables** 에 `NEXT_PUBLIC_
 - **마이그레이션이 안 돈다**: workflows가 살아 있는지 확인하고, 죽었다면 로그에서 DB 접근 실패 원인을 봅니다. dashboard만 띄우고 workflows를 빼면 DB가 빈 상태로 남아 로그인이 깨집니다.
 - **`--mount=type=bind` 또는 cache mount id 에러**: Railway 의 이미지 빌더는 `type=bind` 를 거부하고 `type=cache` 도 `id=s/<service-id>-<target>` 을 요구합니다. 모든 mount 는 제거된 상태(2026-05 작업)지만, 새 Dockerfile 을 추가할 때도 mount 를 쓰지 마세요.
 - **Astro/Next.js envField required 에러**: 빌드 시점에 검증되는 env 가 비어서 깨지는 케이스. Dockerfile 에 placeholder 로 박혀 있는지, 혹은 envField/createEnv 정의를 `optional` 로 바꿔야 하는지 위 매트릭스를 참고하세요.
+- **`The executable pnpm could not be found`** (런타임에 즉시 크래시): Railway UI 의 Start Command 가 `pnpm --filter @openstatus/<service> start` 로 자동 채워진 상태로 배포된 신호. Settings → Deploy → Start Command 를 **완전히 비워서** 저장하면 railway.toml 의 `startCommand` 또는 Dockerfile CMD/ENTRYPOINT 가 사용됩니다.
+- **`Cannot find module '@openstatus/react'`** 같은 워크스페이스 패키지 누락: UI 의 Build Command 가 `next build` 직접 호출로 자동 채워져 turbo 의존성을 건너뛴 신호. Settings → Build → Build Command 를 비우면 Dockerfile 빌드 (turbo --filter 포함) 가 정상 실행됩니다.
